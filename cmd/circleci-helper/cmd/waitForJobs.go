@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 
 	"github.com/influxdata/circleci-helper/cmd/circleci-helper/internal"
 )
@@ -26,32 +27,55 @@ var waitForJobsCmd = &cobra.Command{
 circleci-helper wait-for-jobs --token ... --pipeline ... --workflow "myworkflow" --project-type ... --exclude "my-finalize-job"
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		if err := validateFlags(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error parsing options: %v\n", err)
+		config := zap.NewDevelopmentConfig()
+		config.DisableCaller = true
+		config.DisableStacktrace = true
+		logger, err := config.Build()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error initializing command: %v\n", err)
 			os.Exit(1)
 		}
 
-		success, err := internal.WaitForJobs(
-			circleAPIToken,
-			projectType, org, project,
-			pipelineNumber,
-			commaSeparatedListToSlice(workflow),
-			commaSeparatedListToSlice(exclude),
-		)
+		defer logger.Sync()
+
+		err = waitForJobsMain(logger, cmd, args)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error running command: %v\n", err)
 			os.Exit(1)
 		}
-
-		if success {
-			fmt.Printf("OK   All workflows and jobs finished successfully\n")
-		} else {
-			fmt.Printf("FAIL One or more workflows or jobs failed\n")
-			if failOnError {
-				os.Exit(2)
-			}
-		}
 	},
+}
+
+func waitForJobsMain(logger *zap.Logger, cmd *cobra.Command, args []string) error {
+	if err := validateFlags(); err != nil {
+		return err
+	}
+
+	sugar := logger.Sugar()
+
+	success, err := internal.WaitForJobs(
+		logger,
+		circleAPIToken,
+		projectType, org, project,
+		pipelineNumber,
+		commaSeparatedListToSlice(workflow),
+		commaSeparatedListToSlice(exclude),
+	)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error running command: %v\n", err)
+		os.Exit(1)
+	}
+
+	if success {
+		sugar.Infof("all workflows and jobs finished successfully")
+	} else {
+		sugar.Errorf("one or more workflows or jobs failed")
+		if failOnError {
+			os.Exit(2)
+		}
+	}
+
+	return nil
 }
 
 func validateFlags() error {

@@ -6,12 +6,15 @@ import (
 	"time"
 
 	"github.com/influxdata/circleci-helper/cmd/circleci-helper/circle"
+	"go.uber.org/zap"
 )
 
 // WaitForJobs waits for all jobs matching criteria to finish, ignoring their results.
-func WaitForJobs(token string, projectType string, org string, project string, pipelineNumber int, workflowNames []string, excludeJobNames []string) (bool, error) {
+func WaitForJobs(logger *zap.Logger, token string, projectType string, org string, project string, pipelineNumber int, workflowNames []string, excludeJobNames []string) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
 	defer cancel()
+
+	sugar := logger.Sugar()
 
 	pipelineID, err := circle.GetPipelineID(ctx, token, projectType, org, project, pipelineNumber)
 	if err != nil {
@@ -37,9 +40,9 @@ func WaitForJobs(token string, projectType string, org string, project string, p
 				if circle.WorkflowFinished(workflow) {
 					if circle.WorkflowFailed(workflow) {
 						success = false
-						fmt.Printf("FAIL Workflow %s failed\n", workflow.Name)
+						sugar.Errorf("workflow %s failed", workflow.Name)
 					} else {
-						fmt.Printf("OK   Workflow %s succeeded\n", workflow.Name)
+						sugar.Infof("workflow %s succeeded", workflow.Name)
 					}
 				} else {
 					jobs, err := circle.GetWorkflowJobs(ctx, token, workflow.ID)
@@ -53,12 +56,12 @@ func WaitForJobs(token string, projectType string, org string, project string, p
 						if circle.JobFinished(job) {
 							if circle.JobFailed(job) {
 								success = false
-								fmt.Printf("FAIL Workflow %s job %s failed (status: %s)\n", workflow.Name, job.Name, job.Status)
+								sugar.Errorf("workflow %s job %s failed (status: %s)", workflow.Name, job.Name, job.Status)
 							} else {
-								fmt.Printf("OK   Workflow %s job %s finished (status: %s)\n", workflow.Name, job.Name, job.Status)
+								sugar.Infof("workflow %s job %s finished (status: %s)", workflow.Name, job.Name, job.Status)
 							}
 						} else {
-							fmt.Printf("WARN Workflow %s job %s not yet finished (status: %s)\n", workflow.Name, job.Name, job.Status)
+							sugar.Warnf("workflow %s job %s not yet finished (status: %s)", workflow.Name, job.Name, job.Status)
 							allJobsFinished = false
 						}
 					}
