@@ -8,9 +8,10 @@ import (
 	"github.com/influxdata/circleci-helper/cmd/circleci-helper/circle"
 )
 
-// WaitForJobs waits for all jobs matching criteria to finish, ignoring their results
+// WaitForJobs waits for all jobs matching criteria to finish, ignoring their results.
 func WaitForJobs(token string, projectType string, org string, project string, pipelineNumber int, workflowNames []string, excludeJobNames []string) (bool, error) {
-	ctx, _ := context.WithTimeout(context.Background(), 15*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+	defer cancel()
 
 	pipelineID, err := circle.GetPipelineID(ctx, token, projectType, org, project, pipelineNumber)
 	if err != nil {
@@ -38,7 +39,7 @@ func WaitForJobs(token string, projectType string, org string, project string, p
 						success = false
 						fmt.Printf("FAIL Workflow %s failed\n", workflow.Name)
 					} else {
-						fmt.Printf("OK Workflow %s failed\n", workflow.Name)
+						fmt.Printf("OK   Workflow %s succeeded\n", workflow.Name)
 					}
 				} else {
 					jobs, err := circle.GetWorkflowJobs(ctx, token, workflow.ID)

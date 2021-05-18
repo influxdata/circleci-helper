@@ -35,8 +35,8 @@ circleci-helper wait-for-jobs --token ... --pipeline ... --workflow "myworkflow"
 			circleAPIToken,
 			projectType, org, project,
 			pipelineNumber,
-			commaSeparatedListToArray(workflow),
-			commaSeparatedListToArray(exclude),
+			commaSeparatedListToSlice(workflow),
+			commaSeparatedListToSlice(exclude),
 		)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error running command: %v\n", err)

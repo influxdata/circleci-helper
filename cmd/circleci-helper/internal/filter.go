@@ -4,15 +4,15 @@ import (
 	"github.com/influxdata/circleci-helper/cmd/circleci-helper/circle"
 )
 
-func filterWorkflows(workflows []*circle.Workflow, workflowNames []string) []*circle.Workflow {
-	if len(workflowNames) == 0 {
+func filterWorkflows(workflows []*circle.Workflow, keepNames []string) []*circle.Workflow {
+	if len(keepNames) == 0 {
 		return workflows
 	}
 
 	var result []*circle.Workflow
 	for _, workflow := range workflows {
 		matches := false
-		for _, workflowName := range workflowNames {
+		for _, workflowName := range keepNames {
 			if workflow.Name == workflowName {
 				matches = true
 				break

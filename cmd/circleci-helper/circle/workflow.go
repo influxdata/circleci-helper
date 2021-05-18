@@ -8,7 +8,8 @@ import (
 	"net/url"
 )
 
-// Workflow describes a single CircleCI workflow
+// Workflow describes a single CircleCI workflow.
+// These can be extended to map  more fields from responses as needed.
 type Workflow struct {
 	ID     string `json:"id"`
 	Name   string `json:"name"`
@@ -21,7 +22,7 @@ type circleGetWorkflowJobsResponse struct {
 	NextPageToken string `json:"next_page_token"`
 }
 
-// GetWorkflowJobs returns all jobs for specified workflow
+// GetWorkflowJobs returns all jobs for specified workflow.
 func GetWorkflowJobs(ctx context.Context, token string, workflowID string) ([]*Job, error) {
 	var result []*Job
 
@@ -54,9 +55,8 @@ func GetWorkflowJobs(ctx context.Context, token string, workflowID string) ([]*J
 		}
 
 		// combine results back into result as the API can use pagination
-		for _, item := range response.Items {
-			result = append(result, item)
-		}
+		result = append(result, response.Items...)
+
 		if response.NextPageToken == "" {
 			break
 		}
@@ -68,12 +68,12 @@ func GetWorkflowJobs(ctx context.Context, token string, workflowID string) ([]*J
 
 }
 
-// WorkflowFinished returns whether specified workflow has finished and is no longer in progress
+// WorkflowFinished returns whether specified workflow has finished and is no longer in progress.
 func WorkflowFinished(workflow *Workflow) bool {
 	return WorkflowFailed(workflow) || workflow.Status == "success"
 }
 
-// WorkflowFailed returns whether specified workflow has failed
+// WorkflowFailed returns whether specified workflow has failed.
 func WorkflowFailed(workflow *Workflow) bool {
 	return workflow.Status == "failed" ||
 		workflow.Status == "error" ||
