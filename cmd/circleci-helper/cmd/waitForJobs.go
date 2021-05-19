@@ -1,12 +1,16 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"net/url"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 
+	"github.com/influxdata/circleci-helper/cmd/circleci-helper/circle"
 	"github.com/influxdata/circleci-helper/cmd/circleci-helper/internal"
 )
 
@@ -17,6 +21,9 @@ var project string
 var workflow string
 var exclude string
 var failOnError bool
+var failHeader string
+var failFooter string
+var timeout time.Duration
 
 // waitForJobsCmd represents the waitForJobs command
 var waitForJobsCmd = &cobra.Command{
@@ -53,9 +60,15 @@ func waitForJobsMain(logger *zap.Logger, cmd *cobra.Command, args []string) erro
 
 	sugar := logger.Sugar()
 
-	success, err := internal.WaitForJobs(
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	client := circle.NewClient(circleAPIToken)
+
+	result, err := internal.WaitForJobs(
+		ctx,
 		logger,
-		circleAPIToken,
+		client,
 		projectType, org, project,
 		pipelineNumber,
 		commaSeparatedListToSlice(workflow),
@@ -66,11 +79,40 @@ func waitForJobsMain(logger *zap.Logger, cmd *cobra.Command, args []string) erro
 		os.Exit(1)
 	}
 
-	if success {
+	if len(result.FailedWorkflows) == 0 {
 		sugar.Infof("all workflows and jobs finished successfully")
 	} else {
 		sugar.Errorf("one or more workflows or jobs failed")
 		if failOnError {
+			fmt.Printf(`
+
+##################################################################################################
+
+%s
+
+`,
+				failHeader,
+			)
+
+			for _, workflow := range result.FailedWorkflows {
+				workflowURL := fmt.Sprintf(
+					"https://app.circleci.com/pipelines/%s/%s/%s/%d/workflows/%s",
+					url.PathEscape(projectType), url.PathEscape(org), url.PathEscape(project),
+					pipelineNumber,
+					url.PathEscape(workflow.ID),
+				)
+				fmt.Printf("  - %s ( %s )\n", workflow.Name, workflowURL)
+			}
+
+			fmt.Printf(`
+
+%s
+
+##################################################################################################
+`,
+				failFooter,
+			)
+
 			os.Exit(2)
 		}
 	}
@@ -100,5 +142,8 @@ func init() {
 	waitForJobsCmd.Flags().StringVar(&project, "project", "", "project")
 	waitForJobsCmd.Flags().StringVar(&workflow, "workflow", "", "workflow names to limit to, comma separated list")
 	waitForJobsCmd.Flags().StringVar(&exclude, "exclude", "", "job or jobs to exclude, comma separated list")
-	waitForJobsCmd.Flags().BoolVar(&failOnError, "fail-on-error", false, "return non-zero exit code if one or more jobs have failed")
+	waitForJobsCmd.Flags().BoolVar(&failOnError, "fail-on-error", false, "print human-friendly details about failed workflows and exit with non-zero exit code")
+	waitForJobsCmd.Flags().StringVar(&failHeader, "fail-header", "", "additional message header to print before the report of failed CircleCI workflows")
+	waitForJobsCmd.Flags().StringVar(&failFooter, "fail-footer", "", "additional message footer to print after the report of failed CircleCI workflows")
+	waitForJobsCmd.Flags().DurationVar(&timeout, "timeout", 15*time.Minute, "time out to wait for results")
 }

@@ -11,9 +11,10 @@ import (
 // Workflow describes a single CircleCI workflow.
 // These can be extended to map  more fields from responses as needed.
 type Workflow struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Status    string `json:"status"`
+	CreatedAt string `json:"created_at"`
 }
 
 // helper to deserialize response from CircleCI API
@@ -23,7 +24,7 @@ type circleGetWorkflowJobsResponse struct {
 }
 
 // GetWorkflowJobs returns all jobs for specified workflow.
-func GetWorkflowJobs(ctx context.Context, token string, workflowID string) ([]*Job, error) {
+func (c *tokenBasedClient) GetWorkflowJobs(ctx context.Context, workflowID string) ([]*Job, error) {
 	var result []*Job
 
 	pageToken := ""
@@ -38,7 +39,7 @@ func GetWorkflowJobs(ctx context.Context, token string, workflowID string) ([]*J
 			return result, err
 		}
 
-		req.SetBasicAuth(token, "")
+		req.SetBasicAuth(c.token, "")
 		res, err := http.DefaultClient.Do(req)
 		if err != nil {
 			return result, err
