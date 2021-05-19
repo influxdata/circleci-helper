@@ -123,6 +123,6 @@ func WaitForJobs(ctx context.Context, logger *zap.Logger, client circle.Client, 
 
 		// if one more workflows have not finished, wait and try again
 		sugar.Infof("Not all workflows / jobs have finished, waiting\n")
-		time.Sleep(5 * time.Second)
+		time.Sleep(30 * time.Second)
 	}
 }
