@@ -84,12 +84,13 @@ func waitForJobsMain(logger *zap.Logger, cmd *cobra.Command, args []string) erro
 	} else {
 		sugar.Errorf("one or more workflows or jobs failed")
 		if failOnError {
-			fmt.Printf(
-				"\n\n"+
-					"##################################################################################################\n"+
-					"\n"+
-					"%s\n"+
-					"\n",
+			fmt.Printf(`
+
+##################################################################################################
+
+%s
+
+`,
 				failHeader,
 			)
 
@@ -103,11 +104,12 @@ func waitForJobsMain(logger *zap.Logger, cmd *cobra.Command, args []string) erro
 				fmt.Printf("  - %s ( %s )\n", workflow.Name, workflowURL)
 			}
 
-			fmt.Printf(
-				"\n"+
-					"%s\n"+
-					"\n"+
-					"##################################################################################################\n",
+			fmt.Printf(`
+
+%s
+
+##################################################################################################
+`,
 				failFooter,
 			)
 
@@ -141,7 +143,7 @@ func init() {
 	waitForJobsCmd.Flags().StringVar(&workflow, "workflow", "", "workflow names to limit to, comma separated list")
 	waitForJobsCmd.Flags().StringVar(&exclude, "exclude", "", "job or jobs to exclude, comma separated list")
 	waitForJobsCmd.Flags().BoolVar(&failOnError, "fail-on-error", false, "print human-friendly details about failed workflows and exit with non-zero exit code")
-	waitForJobsCmd.Flags().StringVar(&failHeader, "fail-header", "", "additional message header to print after the report of failed CircleCI workflows")
+	waitForJobsCmd.Flags().StringVar(&failHeader, "fail-header", "", "additional message header to print before the report of failed CircleCI workflows")
 	waitForJobsCmd.Flags().StringVar(&failFooter, "fail-footer", "", "additional message footer to print after the report of failed CircleCI workflows")
 	waitForJobsCmd.Flags().DurationVar(&timeout, "timeout", 15*time.Minute, "time out to wait for results")
 }

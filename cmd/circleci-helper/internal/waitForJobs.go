@@ -10,18 +10,18 @@ import (
 
 // WorkflowsSummary provides summary on all workflows matching pattern and groups them into categories for easier reporting.
 type WorkflowsSummary struct {
-	Finished            bool
-	SuccessfulWorkflows []*circle.Workflow
-	FailedWorkflows     []*circle.Workflow
-	PendingWorkflows    []*PendingWorkflowDetails
+	Finished           bool
+	SucceededWorkflows []*circle.Workflow
+	FailedWorkflows    []*circle.Workflow
+	PendingWorkflows   []*PendingWorkflowDetails
 }
 
 // PendingWorkflowDetails provides information on CircleCI workflows that have not yet finished with details on individual job statuses.
 type PendingWorkflowDetails struct {
-	Workflow       *circle.Workflow
-	SuccessfulJobs []*circle.Job
-	FailedJobs     []*circle.Job
-	PendingJobs    []*circle.Job
+	Workflow      *circle.Workflow
+	SucceededJobs []*circle.Job
+	FailedJobs    []*circle.Job
+	PendingJobs   []*circle.Job
 }
 
 func checkWorkflowsStatus(ctx context.Context, client circle.Client, pipelineID string, workflowNames []string, excludeJobNames []string) (*WorkflowsSummary, error) {
@@ -34,43 +34,50 @@ func checkWorkflowsStatus(ctx context.Context, client circle.Client, pipelineID 
 
 	workflows = filterWorkflows(uniqueWorkflows(workflows), workflowNames)
 
-	// only compare results if all of the expected workflows were reported
-	if len(workflows) >= len(workflowNames) {
-		// assume finished is true if workflows matched unless at least one of them is still pending
-		result.Finished = true
-		for _, workflow := range workflows {
-			if circle.WorkflowFinished(workflow) {
-				// if the workflow has finished, store it either as successful or failed
-				if circle.WorkflowFailed(workflow) {
-					result.FailedWorkflows = append(result.FailedWorkflows, workflow)
+	// assume finished is true if workflows matched unless at least one of them is still pending
+	// if not all of the reported workflows were returned by filters, assume it is not finished and return
+	if len(workflows) < len(workflowNames) {
+		return result, nil
+	}
+
+	result.Finished = true
+	for _, workflow := range workflows {
+		if circle.WorkflowFinished(workflow) {
+			// if the workflow has finished, store it either as successful or failed
+			if circle.WorkflowFailed(workflow) {
+				result.FailedWorkflows = append(result.FailedWorkflows, workflow)
+			} else {
+				result.SucceededWorkflows = append(result.SucceededWorkflows, workflow)
+			}
+			// continue as the current workflow has already been added
+			continue
+		}
+
+		// if one or more workflows have not finished, assume the pipeline has not finished
+		result.Finished = false
+		// analyze specific jobs, excluding jobs requested by the called
+		jobs, err := client.GetWorkflowJobs(ctx, workflow.ID)
+		if err != nil {
+			return result, err
+		}
+
+		jobs = filterJobs(jobs, excludeJobNames)
+
+		// store the workflow and details about each job in the result
+		pendingWorkflow := &PendingWorkflowDetails{Workflow: workflow}
+		result.PendingWorkflows = append(result.PendingWorkflows, pendingWorkflow)
+
+		for _, job := range jobs {
+			if circle.JobFinished(job) {
+				// if the job has finished, store it either as successful or failed
+				if circle.JobFailed(job) {
+					pendingWorkflow.FailedJobs = append(pendingWorkflow.FailedJobs, job)
 				} else {
-					result.SuccessfulWorkflows = append(result.SuccessfulWorkflows, workflow)
+					pendingWorkflow.SucceededJobs = append(pendingWorkflow.SucceededJobs, job)
 				}
 			} else {
-				result.Finished = false
-				// if entire workflow has not finished yet, analyze specific jobs, excluding jobs we do not care about
-				jobs, err := client.GetWorkflowJobs(ctx, workflow.ID)
-				if err != nil {
-					return result, err
-				}
-
-				jobs = filterJobs(jobs, excludeJobNames)
-				pendingWorkflow := &PendingWorkflowDetails{Workflow: workflow}
-				result.PendingWorkflows = append(result.PendingWorkflows, pendingWorkflow)
-
-				for _, job := range jobs {
-					if circle.JobFinished(job) {
-						// if the job has finished, store it either as successful or failed
-						if circle.JobFailed(job) {
-							pendingWorkflow.FailedJobs = append(pendingWorkflow.FailedJobs, job)
-						} else {
-							pendingWorkflow.SuccessfulJobs = append(pendingWorkflow.SuccessfulJobs, job)
-						}
-					} else {
-						// if the job has not finished yet, store it in the list of pending jobs
-						pendingWorkflow.PendingJobs = append(pendingWorkflow.PendingJobs, job)
-					}
-				}
+				// if the job has not finished yet, store it in the list of pending jobs
+				pendingWorkflow.PendingJobs = append(pendingWorkflow.PendingJobs, job)
 			}
 		}
 	}
@@ -87,6 +94,8 @@ func WaitForJobs(ctx context.Context, logger *zap.Logger, client circle.Client, 
 		return nil, err
 	}
 
+	// loop forever, timeout is handled by the context ; any API requests to CircleCI
+	// after timeout will fail and the loop will exit with an error
 	for {
 		result, err := checkWorkflowsStatus(ctx, client, pipelineID, workflowNames, excludeJobNames)
 		if err != nil {
@@ -94,7 +103,7 @@ func WaitForJobs(ctx context.Context, logger *zap.Logger, client circle.Client, 
 		}
 
 		// report all workflows - starting with
-		for _, workflow := range result.SuccessfulWorkflows {
+		for _, workflow := range result.SucceededWorkflows {
 			sugar.Infof("workflow %s finished (status: %s)", workflow.Name, workflow.Status)
 		}
 
@@ -104,7 +113,7 @@ func WaitForJobs(ctx context.Context, logger *zap.Logger, client circle.Client, 
 
 		for _, details := range result.PendingWorkflows {
 			sugar.Infof("workflow %s has not finished yet (status: %s)", details.Workflow.Name, details.Workflow.Status)
-			for _, job := range details.SuccessfulJobs {
+			for _, job := range details.SucceededJobs {
 				sugar.Infof("  - job %s finished (status: %s)", job.Name, job.Status)
 			}
 			for _, job := range details.PendingJobs {

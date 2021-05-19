@@ -2,7 +2,6 @@ package internal
 
 import (
 	"sort"
-	"strings"
 
 	"github.com/influxdata/circleci-helper/cmd/circleci-helper/circle"
 )
@@ -14,7 +13,7 @@ func uniqueWorkflows(workflows []*circle.Workflow) []*circle.Workflow {
 	var sortedWorkflows []*circle.Workflow
 	sortedWorkflows = append(sortedWorkflows, workflows...)
 	sort.Slice(sortedWorkflows, func(a, b int) bool {
-		return strings.Compare(sortedWorkflows[a].CreatedAt, sortedWorkflows[b].CreatedAt) > 0
+		return sortedWorkflows[a].CreatedAt > sortedWorkflows[b].CreatedAt
 	})
 
 	workflowAdded := map[string]bool{}
