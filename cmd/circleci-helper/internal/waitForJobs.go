@@ -53,8 +53,6 @@ func checkWorkflowsStatus(ctx context.Context, client circle.Client, pipelineID 
 			continue
 		}
 
-		// if one or more workflows have not finished, assume the pipeline has not finished
-		result.Finished = false
 		// analyze specific jobs, excluding jobs requested by the called
 		jobs, err := client.GetWorkflowJobs(ctx, workflow.ID)
 		if err != nil {
@@ -78,6 +76,9 @@ func checkWorkflowsStatus(ctx context.Context, client circle.Client, pipelineID 
 			} else {
 				// if the job has not finished yet, store it in the list of pending jobs
 				pendingWorkflow.PendingJobs = append(pendingWorkflow.PendingJobs, job)
+
+				// if one or more jobs inside non-finished workflows have not finished, assume the pipeline has not finished
+				result.Finished = false
 			}
 		}
 	}
