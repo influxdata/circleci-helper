@@ -10,6 +10,7 @@ import (
 
 // WorkflowsSummary provides summary on all workflows matching pattern and groups them into categories for easier reporting.
 type WorkflowsSummary struct {
+	Failed             bool
 	Finished           bool
 	SucceededWorkflows []*circle.Workflow
 	FailedWorkflows    []*circle.Workflow
@@ -46,6 +47,7 @@ func checkWorkflowsStatus(ctx context.Context, client circle.Client, pipelineID 
 			// if the workflow has finished, store it either as successful or failed
 			if circle.WorkflowFailed(workflow) {
 				result.FailedWorkflows = append(result.FailedWorkflows, workflow)
+				result.Failed = true
 			} else {
 				result.SucceededWorkflows = append(result.SucceededWorkflows, workflow)
 			}
@@ -70,6 +72,7 @@ func checkWorkflowsStatus(ctx context.Context, client circle.Client, pipelineID 
 				// if the job has finished, store it either as successful or failed
 				if circle.JobFailed(job) {
 					pendingWorkflow.FailedJobs = append(pendingWorkflow.FailedJobs, job)
+					result.Failed = true
 				} else {
 					pendingWorkflow.SucceededJobs = append(pendingWorkflow.SucceededJobs, job)
 				}
@@ -87,7 +90,7 @@ func checkWorkflowsStatus(ctx context.Context, client circle.Client, pipelineID 
 }
 
 // WaitForJobs waits for all jobs matching criteria to finish, ignoring their results.
-func WaitForJobs(ctx context.Context, logger *zap.Logger, client circle.Client, projectType string, org string, project string, pipelineNumber int, workflowNames []string, excludeJobNames []string) (*WorkflowsSummary, error) {
+func WaitForJobs(ctx context.Context, logger *zap.Logger, client circle.Client, projectType string, org string, project string, pipelineNumber int, workflowNames []string, excludeJobNames []string, failOnError bool) (*WorkflowsSummary, error) {
 	sugar := logger.Sugar()
 
 	pipelineID, err := client.GetPipelineID(ctx, projectType, org, project, pipelineNumber)
@@ -127,12 +130,21 @@ func WaitForJobs(ctx context.Context, logger *zap.Logger, client circle.Client, 
 
 		// if everything has finished already, simply report that and return
 		if result.Finished {
-			sugar.Infof("all workflows finished successfully")
+			if result.Failed {
+				sugar.Warnf("all workflows finished - failed")
+			} else {
+				sugar.Infof("all workflows finished - successfully")
+			}
+			return result, nil
+		}
+
+		if result.Failed && failOnError {
+			sugar.Warnf("one or workflows has failed and should fail on error - exiting")
 			return result, nil
 		}
 
 		// if one more workflows have not finished, wait and try again
-		sugar.Infof("Not all workflows / jobs have finished, waiting\n")
+		sugar.Infof("Not all workflows / jobs have finished, waiting")
 		time.Sleep(30 * time.Second)
 	}
 }

@@ -53,6 +53,16 @@ circleci-helper wait-for-jobs --token ... --pipeline ... --workflow "myworkflow"
 	},
 }
 
+func printWorkflowNameAndURL(workflow *circle.Workflow) {
+	workflowURL := fmt.Sprintf(
+		"https://app.circleci.com/pipelines/%s/%s/%s/%d/workflows/%s",
+		url.PathEscape(projectType), url.PathEscape(org), url.PathEscape(project),
+		pipelineNumber,
+		url.PathEscape(workflow.ID),
+	)
+	fmt.Printf("  - %s ( %s )\n", workflow.Name, workflowURL)
+}
+
 func waitForJobsMain(logger *zap.Logger, cmd *cobra.Command, args []string) error {
 	if err := validateFlags(); err != nil {
 		return err
@@ -73,13 +83,14 @@ func waitForJobsMain(logger *zap.Logger, cmd *cobra.Command, args []string) erro
 		pipelineNumber,
 		commaSeparatedListToSlice(workflow),
 		commaSeparatedListToSlice(exclude),
+		failOnError,
 	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error running command: %v\n", err)
 		os.Exit(1)
 	}
 
-	if len(result.FailedWorkflows) == 0 {
+	if !result.Failed {
 		sugar.Infof("all workflows and jobs finished successfully")
 	} else {
 		sugar.Errorf("one or more workflows or jobs failed")
@@ -94,14 +105,16 @@ func waitForJobsMain(logger *zap.Logger, cmd *cobra.Command, args []string) erro
 				failHeader,
 			)
 
+			// report all workflows that have failed
 			for _, workflow := range result.FailedWorkflows {
-				workflowURL := fmt.Sprintf(
-					"https://app.circleci.com/pipelines/%s/%s/%s/%d/workflows/%s",
-					url.PathEscape(projectType), url.PathEscape(org), url.PathEscape(project),
-					pipelineNumber,
-					url.PathEscape(workflow.ID),
-				)
-				fmt.Printf("  - %s ( %s )\n", workflow.Name, workflowURL)
+				printWorkflowNameAndURL(workflow)
+			}
+
+			// report any workflow that has at least one job that has failed
+			for _, workflow := range result.PendingWorkflows {
+				if len(workflow.FailedJobs) > 0 {
+					printWorkflowNameAndURL(workflow.Workflow)
+				}
 			}
 
 			fmt.Printf(`
