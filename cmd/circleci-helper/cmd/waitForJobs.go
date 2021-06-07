@@ -80,12 +80,16 @@ func waitForJobsMain(logger *zap.Logger, cmd *cobra.Command, args []string) erro
 		ctx,
 		logger,
 		client,
-		projectType, org, project,
-		pipelineNumber,
-		commaSeparatedListToSlice(workflow),
-		commaSeparatedListToSlice(exclude),
-		commaSeparatedListToSlice(jobPrefix),
-		failOnError,
+		internal.WaitForJobsOptions{
+			ProjectType:     projectType,
+			Org:             org,
+			Project:         project,
+			PipelineNumber:  pipelineNumber,
+			WorkflowNames:   commaSeparatedListToSlice(workflow),
+			ExcludeJobNames: commaSeparatedListToSlice(exclude),
+			JobPrefixes:     commaSeparatedListToSlice(jobPrefix),
+			FailOnError:     failOnError,
+		},
 	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error running command: %v\n", err)
