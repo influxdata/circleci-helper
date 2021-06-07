@@ -8,6 +8,18 @@ import (
 	"go.uber.org/zap"
 )
 
+// WaitForJobsOptions allows passing options for WaitForJobs function.
+type WaitForJobsOptions struct {
+	ProjectType     string
+	Org             string
+	Project         string
+	PipelineNumber  int
+	WorkflowNames   []string
+	ExcludeJobNames []string
+	JobPrefixes     []string
+	FailOnError     bool
+}
+
 // WorkflowsSummary provides summary on all workflows matching pattern and groups them into categories for easier reporting.
 type WorkflowsSummary struct {
 	Failed             bool
@@ -25,7 +37,7 @@ type PendingWorkflowDetails struct {
 	PendingJobs   []*circle.Job
 }
 
-func checkWorkflowsStatus(ctx context.Context, client circle.Client, pipelineID string, workflowNames []string, excludeJobNames []string) (*WorkflowsSummary, error) {
+func checkWorkflowsStatus(ctx context.Context, client circle.Client, pipelineID string, opts WaitForJobsOptions) (*WorkflowsSummary, error) {
 	result := &WorkflowsSummary{}
 
 	workflows, err := client.GetWorkflows(ctx, pipelineID)
@@ -33,11 +45,11 @@ func checkWorkflowsStatus(ctx context.Context, client circle.Client, pipelineID 
 		return result, err
 	}
 
-	workflows = filterWorkflows(uniqueWorkflows(workflows), workflowNames)
+	workflows = filterWorkflows(uniqueWorkflows(workflows), opts.WorkflowNames)
 
 	// assume finished is true if workflows matched unless at least one of them is still pending
 	// if not all of the reported workflows were returned by filters, assume it is not finished and return
-	if len(workflows) < len(workflowNames) {
+	if len(workflows) < len(opts.WorkflowNames) {
 		return result, nil
 	}
 
@@ -61,7 +73,7 @@ func checkWorkflowsStatus(ctx context.Context, client circle.Client, pipelineID 
 			return result, err
 		}
 
-		jobs = filterJobs(jobs, excludeJobNames)
+		jobs = filterJobs(jobs, opts.ExcludeJobNames, opts.JobPrefixes)
 
 		// store the workflow and details about each job in the result
 		pendingWorkflow := &PendingWorkflowDetails{Workflow: workflow}
@@ -90,10 +102,10 @@ func checkWorkflowsStatus(ctx context.Context, client circle.Client, pipelineID 
 }
 
 // WaitForJobs waits for all jobs matching criteria to finish, ignoring their results.
-func WaitForJobs(ctx context.Context, logger *zap.Logger, client circle.Client, projectType string, org string, project string, pipelineNumber int, workflowNames []string, excludeJobNames []string, failOnError bool) (*WorkflowsSummary, error) {
+func WaitForJobs(ctx context.Context, logger *zap.Logger, client circle.Client, opts WaitForJobsOptions) (*WorkflowsSummary, error) {
 	sugar := logger.Sugar()
 
-	pipelineID, err := client.GetPipelineID(ctx, projectType, org, project, pipelineNumber)
+	pipelineID, err := client.GetPipelineID(ctx, opts.ProjectType, opts.Org, opts.Project, opts.PipelineNumber)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +113,7 @@ func WaitForJobs(ctx context.Context, logger *zap.Logger, client circle.Client, 
 	// loop forever, timeout is handled by the context ; any API requests to CircleCI
 	// after timeout will fail and the loop will exit with an error
 	for {
-		result, err := checkWorkflowsStatus(ctx, client, pipelineID, workflowNames, excludeJobNames)
+		result, err := checkWorkflowsStatus(ctx, client, pipelineID, opts)
 		if err != nil {
 			return nil, err
 		}
@@ -138,7 +150,7 @@ func WaitForJobs(ctx context.Context, logger *zap.Logger, client circle.Client, 
 			return result, nil
 		}
 
-		if result.Failed && failOnError {
+		if result.Failed && opts.FailOnError {
 			sugar.Warnf("one or workflows has failed and should fail on error - exiting")
 			return result, nil
 		}

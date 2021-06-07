@@ -20,6 +20,7 @@ var org string
 var project string
 var workflow string
 var exclude string
+var jobPrefix string
 var failOnError bool
 var failHeader string
 var failFooter string
@@ -79,11 +80,16 @@ func waitForJobsMain(logger *zap.Logger, cmd *cobra.Command, args []string) erro
 		ctx,
 		logger,
 		client,
-		projectType, org, project,
-		pipelineNumber,
-		commaSeparatedListToSlice(workflow),
-		commaSeparatedListToSlice(exclude),
-		failOnError,
+		internal.WaitForJobsOptions{
+			ProjectType:     projectType,
+			Org:             org,
+			Project:         project,
+			PipelineNumber:  pipelineNumber,
+			WorkflowNames:   commaSeparatedListToSlice(workflow),
+			ExcludeJobNames: commaSeparatedListToSlice(exclude),
+			JobPrefixes:     commaSeparatedListToSlice(jobPrefix),
+			FailOnError:     failOnError,
+		},
 	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error running command: %v\n", err)
@@ -155,6 +161,7 @@ func init() {
 	waitForJobsCmd.Flags().StringVar(&project, "project", "", "project")
 	waitForJobsCmd.Flags().StringVar(&workflow, "workflow", "", "workflow names to limit to, comma separated list")
 	waitForJobsCmd.Flags().StringVar(&exclude, "exclude", "", "job or jobs to exclude, comma separated list")
+	waitForJobsCmd.Flags().StringVar(&jobPrefix, "job-prefix", "", "job prefix or prefixes to limit filtering to, comma separated list")
 	waitForJobsCmd.Flags().BoolVar(&failOnError, "fail-on-error", false, "print human-friendly details about failed workflows and exit with non-zero exit code")
 	waitForJobsCmd.Flags().StringVar(&failHeader, "fail-header", "", "additional message header to print before the report of failed CircleCI workflows")
 	waitForJobsCmd.Flags().StringVar(&failFooter, "fail-footer", "", "additional message footer to print after the report of failed CircleCI workflows")

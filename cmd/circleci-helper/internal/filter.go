@@ -2,6 +2,7 @@ package internal
 
 import (
 	"sort"
+	"strings"
 
 	"github.com/influxdata/circleci-helper/cmd/circleci-helper/circle"
 )
@@ -50,21 +51,31 @@ func filterWorkflows(workflows []*circle.Workflow, keepNames []string) []*circle
 	return result
 }
 
-func filterJobs(jobs []*circle.Job, excludeJobNames []string) []*circle.Job {
+func filterJobs(jobs []*circle.Job, excludeJobNames []string, jobPrefixes []string) []*circle.Job {
 	if len(excludeJobNames) == 0 {
 		return jobs
 	}
 
 	var result []*circle.Job
 	for _, job := range jobs {
-		exclude := false
+		matches := true
+		if len(jobPrefixes) > 0 {
+			// when limiting to prefixes, ensure at least one job has same prefix, otherwise ignore job
+			matches = false
+			for _, jobPrefix := range jobPrefixes {
+				if strings.HasPrefix(job.Name, jobPrefix) {
+					matches = true
+					break
+				}
+			}
+		}
 		for _, excludeJobName := range excludeJobNames {
 			if job.Name == excludeJobName {
-				exclude = true
+				matches = false
 				break
 			}
 		}
-		if !exclude {
+		if matches {
 			result = append(result, job)
 		}
 	}
