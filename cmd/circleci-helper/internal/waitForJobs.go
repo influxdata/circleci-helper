@@ -25,7 +25,7 @@ type PendingWorkflowDetails struct {
 	PendingJobs   []*circle.Job
 }
 
-func checkWorkflowsStatus(ctx context.Context, client circle.Client, pipelineID string, workflowNames []string, excludeJobNames []string) (*WorkflowsSummary, error) {
+func checkWorkflowsStatus(ctx context.Context, client circle.Client, pipelineID string, workflowNames []string, excludeJobNames []string, jobPrefixes []string) (*WorkflowsSummary, error) {
 	result := &WorkflowsSummary{}
 
 	workflows, err := client.GetWorkflows(ctx, pipelineID)
@@ -61,7 +61,7 @@ func checkWorkflowsStatus(ctx context.Context, client circle.Client, pipelineID 
 			return result, err
 		}
 
-		jobs = filterJobs(jobs, excludeJobNames)
+		jobs = filterJobs(jobs, excludeJobNames, jobPrefixes)
 
 		// store the workflow and details about each job in the result
 		pendingWorkflow := &PendingWorkflowDetails{Workflow: workflow}
@@ -90,7 +90,7 @@ func checkWorkflowsStatus(ctx context.Context, client circle.Client, pipelineID 
 }
 
 // WaitForJobs waits for all jobs matching criteria to finish, ignoring their results.
-func WaitForJobs(ctx context.Context, logger *zap.Logger, client circle.Client, projectType string, org string, project string, pipelineNumber int, workflowNames []string, excludeJobNames []string, failOnError bool) (*WorkflowsSummary, error) {
+func WaitForJobs(ctx context.Context, logger *zap.Logger, client circle.Client, projectType string, org string, project string, pipelineNumber int, workflowNames []string, excludeJobNames []string, jobPrefixes []string, failOnError bool) (*WorkflowsSummary, error) {
 	sugar := logger.Sugar()
 
 	pipelineID, err := client.GetPipelineID(ctx, projectType, org, project, pipelineNumber)
@@ -101,7 +101,7 @@ func WaitForJobs(ctx context.Context, logger *zap.Logger, client circle.Client, 
 	// loop forever, timeout is handled by the context ; any API requests to CircleCI
 	// after timeout will fail and the loop will exit with an error
 	for {
-		result, err := checkWorkflowsStatus(ctx, client, pipelineID, workflowNames, excludeJobNames)
+		result, err := checkWorkflowsStatus(ctx, client, pipelineID, workflowNames, excludeJobNames, jobPrefixes)
 		if err != nil {
 			return nil, err
 		}
