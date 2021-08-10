@@ -14,11 +14,6 @@ import (
 	"github.com/influxdata/circleci-helper/cmd/circleci-helper/internal"
 )
 
-var pipelineNumber int
-var projectType string
-var org string
-var project string
-var workflow string
 var exclude string
 var jobPrefix string
 var failOnError bool
@@ -35,22 +30,7 @@ var waitForJobsCmd = &cobra.Command{
 circleci-helper wait-for-jobs --token ... --pipeline ... --workflow "myworkflow" --project-type ... --exclude "my-finalize-job"
 `,
 	Run: func(cmd *cobra.Command, args []string) {
-		config := zap.NewDevelopmentConfig()
-		config.DisableCaller = true
-		config.DisableStacktrace = true
-		logger, err := config.Build()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error initializing command: %v\n", err)
-			os.Exit(1)
-		}
-
-		defer logger.Sync()
-
-		err = waitForJobsMain(logger, cmd, args)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error running command: %v\n", err)
-			os.Exit(1)
-		}
+		commandHelper(cmd, args, waitForJobsMain)
 	},
 }
 
@@ -65,7 +45,7 @@ func printWorkflowNameAndURL(workflow *circle.Workflow) {
 }
 
 func waitForJobsMain(logger *zap.Logger, cmd *cobra.Command, args []string) error {
-	if err := validateFlags(); err != nil {
+	if err := validateWorkflowFlags(); err != nil {
 		return err
 	}
 
@@ -92,8 +72,7 @@ func waitForJobsMain(logger *zap.Logger, cmd *cobra.Command, args []string) erro
 		},
 	)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error running command: %v\n", err)
-		os.Exit(1)
+		return err
 	}
 
 	if !result.Failed {
@@ -113,7 +92,7 @@ func waitForJobsMain(logger *zap.Logger, cmd *cobra.Command, args []string) erro
 
 			// report all workflows that have failed
 			for _, workflow := range result.FailedWorkflows {
-				printWorkflowNameAndURL(workflow)
+				printWorkflowNameAndURL(workflow.Workflow)
 			}
 
 			// report any workflow that has at least one job that has failed
@@ -139,27 +118,11 @@ func waitForJobsMain(logger *zap.Logger, cmd *cobra.Command, args []string) erro
 	return nil
 }
 
-func validateFlags() error {
-	if org == "" {
-		return fmt.Errorf("org must be specified")
-	}
-	if project == "" {
-		return fmt.Errorf("project must be specified")
-	}
-	if pipelineNumber == 0 {
-		return fmt.Errorf("pipeline-number must be specified")
-	}
-	return nil
-}
-
 func init() {
 	rootCmd.AddCommand(waitForJobsCmd)
 
-	waitForJobsCmd.Flags().IntVar(&pipelineNumber, "pipeline-number", 0, "pipeline number")
-	waitForJobsCmd.Flags().StringVar(&projectType, "project-type", "github", "project type (i.e. github)")
-	waitForJobsCmd.Flags().StringVar(&org, "org", "", "organization")
-	waitForJobsCmd.Flags().StringVar(&project, "project", "", "project")
-	waitForJobsCmd.Flags().StringVar(&workflow, "workflow", "", "workflow names to limit to, comma separated list")
+	addWorkflowFlags(waitForJobsCmd)
+
 	waitForJobsCmd.Flags().StringVar(&exclude, "exclude", "", "job or jobs to exclude, comma separated list")
 	waitForJobsCmd.Flags().StringVar(&jobPrefix, "job-prefix", "", "job prefix or prefixes to limit filtering to, comma separated list")
 	waitForJobsCmd.Flags().BoolVar(&failOnError, "fail-on-error", false, "print human-friendly details about failed workflows and exit with non-zero exit code")

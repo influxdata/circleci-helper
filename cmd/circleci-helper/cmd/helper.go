@@ -1,6 +1,13 @@
 package cmd
 
-import "strings"
+import (
+	"fmt"
+	"os"
+	"strings"
+
+	"github.com/spf13/cobra"
+	"go.uber.org/zap"
+)
 
 // convert comma separated list into an array, trimming spaces and ignoring empty values
 func commaSeparatedListToSlice(value string) (result []string) {
@@ -11,4 +18,23 @@ func commaSeparatedListToSlice(value string) (result []string) {
 		}
 	}
 	return result
+}
+
+func commandHelper(cmd *cobra.Command, args []string, mainFunction func(logger *zap.Logger, cmd *cobra.Command, args []string) error) {
+	config := zap.NewDevelopmentConfig()
+	config.DisableCaller = true
+	config.DisableStacktrace = true
+	logger, err := config.Build()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error initializing command: %v\n", err)
+		os.Exit(1)
+	}
+
+	defer logger.Sync()
+
+	err = mainFunction(logger, cmd, args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error running command: %v\n", err)
+		os.Exit(1)
+	}
 }
