@@ -36,7 +36,7 @@ func (c *tokenBasedClient) GetPipelineID(ctx context.Context, projectType string
 	defer res.Body.Close()
 
 	if res.StatusCode >= 400 {
-		return "", fmt.Errorf("invalid HTTP response code: %d", res.StatusCode)
+		return "", newClientHTTPErrorFromResponse(res)
 	}
 
 	var response circleGetPipelineIDResponse
@@ -47,7 +47,7 @@ func (c *tokenBasedClient) GetPipelineID(ctx context.Context, projectType string
 	return response.ID, nil
 }
 
-// GetWorkflows returns all workflows for specified pipeline id.
+// GetWorkflows retrieves workflows for a specific pipeline ID.
 func (c *tokenBasedClient) GetWorkflows(ctx context.Context, pipelineID string) ([]*Workflow, error) {
 	var result []*Workflow
 
@@ -71,7 +71,7 @@ func (c *tokenBasedClient) GetWorkflows(ctx context.Context, pipelineID string) 
 		defer res.Body.Close()
 
 		if res.StatusCode >= 400 {
-			return result, fmt.Errorf("invalid HTTP response code: %d", res.StatusCode)
+			return result, newClientHTTPErrorFromResponse(res)
 		}
 
 		var response circleGetWorkflowsResponse

@@ -23,7 +23,7 @@ type circleGetWorkflowJobsResponse struct {
 	NextPageToken string `json:"next_page_token"`
 }
 
-// GetWorkflowJobs returns all jobs for specified workflow.
+// GetWorkflowJobs retrieves jobs for a specific workflow ID.
 func (c *tokenBasedClient) GetWorkflowJobs(ctx context.Context, workflowID string) ([]*Job, error) {
 	var result []*Job
 
@@ -47,7 +47,7 @@ func (c *tokenBasedClient) GetWorkflowJobs(ctx context.Context, workflowID strin
 		defer res.Body.Close()
 
 		if res.StatusCode >= 400 {
-			return result, fmt.Errorf("invalid HTTP response code: %d", res.StatusCode)
+			return result, newClientHTTPErrorFromResponse(res)
 		}
 
 		var response circleGetWorkflowJobsResponse

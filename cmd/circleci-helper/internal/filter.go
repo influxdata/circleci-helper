@@ -30,54 +30,59 @@ func uniqueWorkflows(workflows []*circle.Workflow) []*circle.Workflow {
 	return result
 }
 
-func filterWorkflows(workflows []*circle.Workflow, keepNames []string) []*circle.Workflow {
+func filterWorkflow(workflow *circle.Workflow, keepNames []string) bool {
 	if len(keepNames) == 0 {
-		return workflows
+		return true
 	}
 
+	for _, workflowName := range keepNames {
+		if workflow.Name == workflowName {
+			return true
+		}
+	}
+
+	return false
+}
+
+func filterWorkflows(workflows []*circle.Workflow, keepNames []string) []*circle.Workflow {
 	var result []*circle.Workflow
 	for _, workflow := range workflows {
-		matches := false
-		for _, workflowName := range keepNames {
-			if workflow.Name == workflowName {
-				matches = true
-				break
-			}
-		}
-		if matches {
+		if filterWorkflow(workflow, keepNames) {
 			result = append(result, workflow)
 		}
 	}
 	return result
 }
 
-func filterJobs(jobs []*circle.Job, excludeJobNames []string, jobPrefixes []string) []*circle.Job {
-	if len(excludeJobNames) == 0 {
-		return jobs
-	}
-
-	var result []*circle.Job
-	for _, job := range jobs {
-		matches := true
-		if len(jobPrefixes) > 0 {
-			// when limiting to prefixes, ensure at least one job has same prefix, otherwise ignore job
-			matches = false
-			for _, jobPrefix := range jobPrefixes {
-				if strings.HasPrefix(job.Name, jobPrefix) {
-					matches = true
-					break
-				}
-			}
-		}
-		for _, excludeJobName := range excludeJobNames {
-			if job.Name == excludeJobName {
-				matches = false
+func filterJob(job *circle.Job, excludeJobNames []string, jobPrefixes []string) bool {
+	matches := true
+	if len(jobPrefixes) > 0 {
+		// when limiting to prefixes, ensure at least one job has same prefix, otherwise ignore job
+		matches = false
+		for _, jobPrefix := range jobPrefixes {
+			if strings.HasPrefix(job.Name, jobPrefix) {
+				matches = true
 				break
 			}
 		}
-		if matches {
-			result = append(result, job)
+	}
+	for _, excludeJobName := range excludeJobNames {
+		if job.Name == excludeJobName {
+			matches = false
+			break
 		}
 	}
-	return result
+	return matches
+}
+
+func filterWorkflowWrapper(keepNames []string) func(workflow *circle.Workflow) bool {
+	return func(workflow *circle.Workflow) bool {
+		return filterWorkflow(workflow, keepNames)
+	}
+}
+
+func filterJobWrapper(excludeJobNames []string, jobPrefixes []string) func(job *circle.Job) bool {
+	return func(job *circle.Job) bool {
+		return filterJob(job, excludeJobNames, jobPrefixes)
+	}
 }
