@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 )
 
 // JobDetails describes details for a single job.
@@ -34,7 +35,11 @@ type JobOutputMessage struct {
 
 // GetJobDetails retrieves details for a specific job in a specific project.
 func (c *tokenBasedClient) GetJobDetails(ctx context.Context, projectType string, org string, project string, jobNumber int) (*JobDetails, error) {
-	requestURL := fmt.Sprintf("https://circleci.com/api/v1.1/project/%s/%s/%s/%d", projectType, org, project, jobNumber)
+	requestURL := fmt.Sprintf(
+		"https://circleci.com/api/v1.1/project/%s/%s/%s/%d",
+		url.PathEscape(projectType), url.PathEscape(org), url.PathEscape(project),
+		jobNumber,
+	)
 
 	req, err := http.NewRequestWithContext(ctx, "GET", requestURL, nil)
 	if err != nil {
