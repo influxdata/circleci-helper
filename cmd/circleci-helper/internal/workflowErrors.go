@@ -38,9 +38,13 @@ func WorkflowErrors(ctx context.Context, logger *zap.Logger, client circle.Clien
 
 	status, err := checkWorkflowsStatus(
 		ctx, client, pipelineID,
-		filterWorkflowWrapper(opts.WorkflowNames),
-		func(job *circle.Job) bool { return true }, // do not filter jobs
-		true, true, true, // retrieve details for all types of jobs
+		checkWorkflowStatusOpts{
+			filterWorkflow: filterWorkflowWrapper(opts.WorkflowNames),
+			// retrieve details for all types of jobs
+			succeededJobDetails: true,
+			failedJobDetails:    true,
+			pendingJobDetails:   true,
+		},
 	)
 
 	if err != nil {

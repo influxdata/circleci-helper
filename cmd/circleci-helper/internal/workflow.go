@@ -45,8 +45,8 @@ func prepareWorkflowDetails(
 		}
 
 		for _, job := range jobs {
-			// if the job should not be considered, continue
-			if !filterJob(job) {
+			// if filter was provided and the job does not match the filter, skip it
+			if filterJob != nil && !filterJob(job) {
 				continue
 			}
 
@@ -80,7 +80,8 @@ func getLatestWorkflows(
 
 	workflows := []*circle.Workflow{}
 	for _, workflow := range uniqueWorkflows(allWorkflows) {
-		if filterWorkflow(workflow) {
+		// if filter was not provided or the filter method returns true, add the workflow to the list
+		if filterWorkflow == nil || filterWorkflow(workflow) {
 			workflows = append(workflows, workflow)
 		}
 	}
@@ -88,20 +89,24 @@ func getLatestWorkflows(
 	return workflows, nil
 }
 
+type checkWorkflowStatusOpts struct {
+	filterWorkflow      func(workflow *circle.Workflow) bool
+	filterJob           func(job *circle.Job) bool
+	succeededJobDetails bool
+	failedJobDetails    bool
+	pendingJobDetails   bool
+}
+
 // checkWorkflowsStatus generates details for all workflows, filtering workflows and jobs, optionally also retrieving details for all or specific types of workflows / jobs
 func checkWorkflowsStatus(
 	ctx context.Context,
 	client circle.Client,
 	pipelineID string,
-	filterWorkflow func(workflow *circle.Workflow) bool,
-	filterJob func(job *circle.Job) bool,
-	succeededJobDetails bool,
-	failedJobDetails bool,
-	pendingJobDetails bool,
+	opts checkWorkflowStatusOpts,
 ) (*WorkflowsSummary, error) {
 	result := &WorkflowsSummary{}
 
-	workflows, err := getLatestWorkflows(ctx, client, pipelineID, filterWorkflow)
+	workflows, err := getLatestWorkflows(ctx, client, pipelineID, opts.filterWorkflow)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +116,7 @@ func checkWorkflowsStatus(
 		if circle.WorkflowFinished(workflow) {
 			// if the workflow has finished, store it either as successful or failed
 			if circle.WorkflowFailed(workflow) {
-				workflowDetails, err := prepareWorkflowDetails(ctx, client, workflow, filterJob, failedJobDetails)
+				workflowDetails, err := prepareWorkflowDetails(ctx, client, workflow, opts.filterJob, opts.failedJobDetails)
 				if err != nil {
 					return nil, err
 				}
@@ -121,7 +126,7 @@ func checkWorkflowsStatus(
 
 				result.Failed = true
 			} else {
-				workflowDetails, err := prepareWorkflowDetails(ctx, client, workflow, filterJob, succeededJobDetails)
+				workflowDetails, err := prepareWorkflowDetails(ctx, client, workflow, opts.filterJob, opts.succeededJobDetails)
 				if err != nil {
 					return nil, err
 				}
@@ -134,12 +139,12 @@ func checkWorkflowsStatus(
 			continue
 		}
 
-		workflowDetails, err := prepareWorkflowDetails(ctx, client, workflow, filterJob, pendingJobDetails)
+		workflowDetails, err := prepareWorkflowDetails(ctx, client, workflow, opts.filterJob, opts.pendingJobDetails)
 		if err != nil {
 			return nil, err
 		}
 
-		if pendingJobDetails {
+		if opts.pendingJobDetails {
 			// if we've retrieved pending job details, assume the workflow has failed if at least one job has already failed and function was asked to retrieve details
 			if len(workflowDetails.PendingJobs) > 0 {
 				result.Finished = false

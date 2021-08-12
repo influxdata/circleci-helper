@@ -37,9 +37,11 @@ func WaitForJobs(ctx context.Context, logger *zap.Logger, client circle.Client, 
 	for {
 		result, err := checkWorkflowsStatus(
 			ctx, client, pipelineID,
-			filterWorkflowWrapper(opts.WorkflowNames),
-			filterJobWrapper(opts.ExcludeJobNames, opts.JobPrefixes),
-			false, false, true, // only retrieve details for pending jobs
+			checkWorkflowStatusOpts{
+				filterWorkflow:    filterWorkflowWrapper(opts.WorkflowNames),
+				filterJob:         filterJobWrapper(opts.ExcludeJobNames, opts.JobPrefixes),
+				pendingJobDetails: true,
+			},
 		)
 
 		if err != nil {

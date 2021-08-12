@@ -312,9 +312,11 @@ func Test_checkWorkflowsStatus(t *testing.T) {
 			// verify checkWorkflowsStatus does not retrieve job details if not requested
 			resultWorkflows, err := checkWorkflowsStatus(
 				ctx, m, "456",
-				func(workflow *circle.Workflow) bool { return true },
-				func(job *circle.Job) bool { return true },
-				test.succeededJobDetails, test.failedJobDetails, test.pendingJobDetails,
+				checkWorkflowStatusOpts{
+					succeededJobDetails: test.succeededJobDetails,
+					failedJobDetails:    test.failedJobDetails,
+					pendingJobDetails:   test.pendingJobDetails,
+				},
 			)
 
 			if err != nil {
