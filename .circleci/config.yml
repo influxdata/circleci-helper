@@ -5,10 +5,10 @@ workflows:
 
   build:
     jobs:
-      - build
+      - test
 
 jobs:
-  build:
+  test:
     docker:
       - image: cimg/go:1.16
     resource_class: small
@@ -17,4 +17,7 @@ jobs:
       - run:
           name: 'Build source code'
           command: 'go build ./...'
+      - run:
+          name: 'Run tests'
+          command: 'go test ./...'
 
