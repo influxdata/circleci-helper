@@ -44,16 +44,6 @@ func filterWorkflow(workflow *circle.Workflow, keepNames []string) bool {
 	return false
 }
 
-func filterWorkflows(workflows []*circle.Workflow, keepNames []string) []*circle.Workflow {
-	var result []*circle.Workflow
-	for _, workflow := range workflows {
-		if filterWorkflow(workflow, keepNames) {
-			result = append(result, workflow)
-		}
-	}
-	return result
-}
-
 func filterJob(job *circle.Job, excludeJobNames []string, jobPrefixes []string) bool {
 	matches := true
 	if len(jobPrefixes) > 0 {

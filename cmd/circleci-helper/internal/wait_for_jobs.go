@@ -2,6 +2,7 @@ package internal
 
 import (
 	"context"
+	"math"
 	"time"
 
 	"github.com/influxdata/circleci-helper/cmd/circleci-helper/circle"
@@ -21,6 +22,7 @@ type WaitForJobsOptions struct {
 	GetSucceededWorkflowJobs bool
 	GetFailedWorkflowJobs    bool
 	GetPendingWorkflowJobs   bool
+	WaitDuration             *WaitForJobsDuration
 }
 
 // WaitForJobs waits for all jobs matching criteria to finish, ignoring their results.
@@ -54,7 +56,10 @@ func WaitForJobs(ctx context.Context, logger *zap.Logger, client circle.Client, 
 			result = &WorkflowsSummary{}
 		}
 
-		// report all workflows - starting with
+		// count number of pending jobs across all workflows
+		pendingJobCount := 0
+
+		// report all workflows - starting with successful ones
 		for _, workflowDetails := range result.SucceededWorkflows {
 			sugar.Infof("workflow %s finished (status: %s)", workflowDetails.Workflow.Name, workflowDetails.Workflow.Status)
 		}
@@ -74,6 +79,7 @@ func WaitForJobs(ctx context.Context, logger *zap.Logger, client circle.Client, 
 			for _, job := range details.FailedJobs {
 				sugar.Warnf("  - job %s failed (status: %s)", job.Name, job.Status)
 			}
+			pendingJobCount += len(details.PendingJobs)
 		}
 
 		// if everything has finished already, simply report that and return
@@ -92,7 +98,8 @@ func WaitForJobs(ctx context.Context, logger *zap.Logger, client circle.Client, 
 		}
 
 		// if one more workflows have not finished, wait and try again
-		sugar.Infof("Not all workflows / jobs have finished, waiting")
-		time.Sleep(30 * time.Second)
+		duration := opts.WaitDuration.GetDuration(pendingJobCount)
+		sugar.Infof("Not all workflows / jobs have finished, waiting for %g seconds", math.Round(duration.Seconds()))
+		time.Sleep(duration)
 	}
 }
