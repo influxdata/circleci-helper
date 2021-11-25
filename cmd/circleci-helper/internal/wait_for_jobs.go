@@ -36,8 +36,6 @@ func WaitForJobs(ctx context.Context, logger *zap.Logger, client circle.Client, 
 
 	// loop forever, timeout is handled by the context ; any API requests to CircleCI
 	// after timeout will fail and the loop will exit with an error
-	var pendingJobCount int
-
 	for {
 		result, err := checkWorkflowsStatus(
 			ctx, client, pipelineID,
@@ -58,7 +56,8 @@ func WaitForJobs(ctx context.Context, logger *zap.Logger, client circle.Client, 
 			result = &WorkflowsSummary{}
 		}
 
-		pendingJobCount = 0
+		// count number of pending jobs across all workflows
+		pendingJobCount := 0
 
 		// report all workflows - starting with successful ones
 		for _, workflowDetails := range result.SucceededWorkflows {
