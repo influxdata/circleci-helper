@@ -20,6 +20,7 @@ var failOnError bool
 var failHeader string
 var failFooter string
 var timeout time.Duration
+var waitTime time.Duration
 
 // waitForJobsCmd represents the waitForJobs command
 var waitForJobsCmd = &cobra.Command{
@@ -69,6 +70,7 @@ func waitForJobsMain(logger *zap.Logger, cmd *cobra.Command, args []string) erro
 			ExcludeJobNames: commaSeparatedListToSlice(exclude),
 			JobPrefixes:     commaSeparatedListToSlice(jobPrefix),
 			FailOnError:     failOnError,
+			WaitDuration:    internal.NewWaitForJobsDuration(waitTime),
 		},
 	)
 	if err != nil {
@@ -129,4 +131,5 @@ func init() {
 	waitForJobsCmd.Flags().StringVar(&failHeader, "fail-header", "", "additional message header to print before the report of failed CircleCI workflows")
 	waitForJobsCmd.Flags().StringVar(&failFooter, "fail-footer", "", "additional message footer to print after the report of failed CircleCI workflows")
 	waitForJobsCmd.Flags().DurationVar(&timeout, "timeout", 15*time.Minute, "time out to wait for results")
+	waitForJobsCmd.Flags().DurationVar(&waitTime, "wait-time", 10*time.Second, "time out to wait between performing checks (twice as much if >= 3 jobs are still pending)")
 }

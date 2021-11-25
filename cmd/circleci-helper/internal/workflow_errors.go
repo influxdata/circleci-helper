@@ -8,7 +8,7 @@ import (
 	"go.uber.org/zap"
 )
 
-// WaitForJobsOptions allows passing options for retrieving status of one or more workflows.
+// WorkflowErrorsOptions allows passing options for retrieving status of one or more workflows.
 type WorkflowErrorsOptions struct {
 	ProjectType    string
 	Org            string

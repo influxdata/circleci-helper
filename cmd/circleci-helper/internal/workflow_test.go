@@ -44,24 +44,6 @@ func (m *mockCircleClient) addJobs(workflowID string, jobs []*circle.Job) {
 	m.jobsMap[workflowID] = jobs
 }
 
-func (m *mockCircleClient) addJobDetails(jobID int, details *circle.JobDetails) {
-	m.jobDetailsMap[jobID] = details
-}
-
-func (m *mockCircleClient) addJobOutput(job *circle.JobAction, output []circle.JobOutputMessage) {
-	m.jobOutputMap[job.OutputURL] = output
-}
-
-func (m *mockCircleClient) addJobOutputString(job *circle.JobAction, message string) {
-	m.jobOutputMap[job.OutputURL] = []circle.JobOutputMessage{
-		{
-			Message: message,
-			Time:    "2021-01-01T00:00:00.000Z",
-			Type:    "out",
-		},
-	}
-}
-
 func (m *mockCircleClient) GetPipelineID(ctx context.Context, projectType string, org string, project string, pipelineNumber int) (string, error) {
 	if m.projectType != projectType || m.org != org || m.project != project {
 		return "", fmt.Errorf("invalid project info")
