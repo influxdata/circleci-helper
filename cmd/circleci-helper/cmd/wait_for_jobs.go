@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 	"os"
@@ -74,6 +75,10 @@ func waitForJobsMain(logger *zap.Logger, cmd *cobra.Command, args []string) erro
 		},
 	)
 	if err != nil {
+		// context's timeout has been exceeded
+		if errors.Is(err, ctx.Err()) {
+			return fmt.Errorf("timed out waiting for jobs after %v", timeout)
+		}
 		return err
 	}
 
