@@ -47,7 +47,7 @@ func (c *tokenBasedClient) GetWorkflowJobs(ctx context.Context, workflowID strin
 		defer res.Body.Close()
 
 		if res.StatusCode >= 400 {
-			return result, newClientHTTPErrorFromResponse(res)
+			return result, newClientHTTPErrorFromResponse(c.logger, res)
 		}
 
 		var response circleGetWorkflowJobsResponse
