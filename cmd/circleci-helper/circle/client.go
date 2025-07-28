@@ -2,22 +2,29 @@ package circle
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 )
 
 // ClientHTTPError implements error interface for HTTP errors.
 type ClientHTTPError struct {
-	StatusCode int
+	StatusCode int    `json:"-"`
+	Message    string `json:"message,omitempty"`
 }
 
 func newClientHTTPErrorFromResponse(res *http.Response) *ClientHTTPError {
-	return &ClientHTTPError{
-		StatusCode: res.StatusCode,
-	}
+	var ce ClientHTTPError
+	dec := json.NewDecoder(res.Body)
+	dec.Decode(&ce)
+	ce.StatusCode = res.StatusCode
+	return &ce
 }
 
 func (e *ClientHTTPError) Error() string {
+	if e.Message != "" {
+		return e.Message
+	}
 	return fmt.Sprintf("invalid HTTP response code: %d", e.StatusCode)
 }
 
