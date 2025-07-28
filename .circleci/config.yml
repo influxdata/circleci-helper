@@ -1,4 +1,4 @@
-version: '2.1'
+version: "2.1"
 
 workflows:
   version: 2
@@ -10,14 +10,16 @@ workflows:
 jobs:
   test:
     docker:
-      - image: cimg/go:1.17
+      - image: cimg/go:1.24
     resource_class: small
     steps:
       - checkout
       - run:
-          name: 'Build source code'
-          command: 'go build ./...'
+          name: "Run staticcheck"
+          command: "go tool staticcheck ./..."
       - run:
-          name: 'Run tests'
-          command: 'go test ./...'
-
+          name: "Build source code"
+          command: "go build ./..."
+      - run:
+          name: "Run tests"
+          command: "go test ./..."
