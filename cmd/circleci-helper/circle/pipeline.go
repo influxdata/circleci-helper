@@ -36,7 +36,7 @@ func (c *tokenBasedClient) GetPipelineID(ctx context.Context, projectType string
 	defer res.Body.Close()
 
 	if res.StatusCode >= 400 {
-		return "", newClientHTTPErrorFromResponse(res)
+		return "", newClientHTTPErrorFromResponse(c.logger, res)
 	}
 
 	var response circleGetPipelineIDResponse
@@ -71,7 +71,7 @@ func (c *tokenBasedClient) GetWorkflows(ctx context.Context, pipelineID string) 
 		defer res.Body.Close()
 
 		if res.StatusCode >= 400 {
-			return result, newClientHTTPErrorFromResponse(res)
+			return result, newClientHTTPErrorFromResponse(c.logger, res)
 		}
 
 		var response circleGetWorkflowsResponse

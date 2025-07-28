@@ -31,7 +31,7 @@ func workflowErrorsMain(logger *zap.Logger, cmd *cobra.Command, args []string) e
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	client := circle.NewClient(circleAPIToken)
+	client := circle.NewClient(logger, circleAPIToken)
 
 	result, err := internal.WorkflowErrors(ctx, logger, client, internal.WorkflowErrorsOptions{
 		ProjectType:    projectType,

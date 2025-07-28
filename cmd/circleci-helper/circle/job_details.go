@@ -55,7 +55,7 @@ func (c *tokenBasedClient) GetJobDetails(ctx context.Context, projectType string
 	defer res.Body.Close()
 
 	if res.StatusCode >= 400 {
-		return nil, newClientHTTPErrorFromResponse(res)
+		return nil, newClientHTTPErrorFromResponse(c.logger, res)
 	}
 
 	var response JobDetails
@@ -80,7 +80,7 @@ func (c *tokenBasedClient) GetJobActionOutput(ctx context.Context, action *JobAc
 	defer res.Body.Close()
 
 	if res.StatusCode >= 400 {
-		return nil, newClientHTTPErrorFromResponse(res)
+		return nil, newClientHTTPErrorFromResponse(c.logger, res)
 	}
 
 	var response []JobOutputMessage

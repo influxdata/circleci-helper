@@ -56,7 +56,7 @@ func waitForJobsMain(logger *zap.Logger, cmd *cobra.Command, args []string) erro
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	client := circle.NewClient(circleAPIToken)
+	client := circle.NewClient(logger, circleAPIToken)
 
 	result, err := internal.WaitForJobs(
 		ctx,

@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"go.uber.org/zap"
 )
 
 // ClientHTTPError implements error interface for HTTP errors.
@@ -13,10 +15,12 @@ type ClientHTTPError struct {
 	Message    string `json:"message,omitempty"`
 }
 
-func newClientHTTPErrorFromResponse(res *http.Response) *ClientHTTPError {
+func newClientHTTPErrorFromResponse(logger *zap.Logger, res *http.Response) *ClientHTTPError {
 	var ce ClientHTTPError
 	dec := json.NewDecoder(res.Body)
-	dec.Decode(&ce)
+	if err := dec.Decode(&ce); err != nil {
+		logger.Warn("failed to decode CircleCI API error response", zap.Error(err))
+	}
 	ce.StatusCode = res.StatusCode
 	return &ce
 }
@@ -43,12 +47,14 @@ type Client interface {
 }
 
 type tokenBasedClient struct {
-	token string
+	logger *zap.Logger
+	token  string
 }
 
 // NewClient creates a new instance Client that can be used to communicate with CircleCI.
-func NewClient(token string) Client {
+func NewClient(logger *zap.Logger, token string) Client {
 	return &tokenBasedClient{
-		token: token,
+		logger: logger,
+		token:  token,
 	}
 }
