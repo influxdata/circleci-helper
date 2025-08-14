@@ -1,0 +1,36 @@
+name: Build & Release
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '.github/workflows/**'
+
+permissions:
+  contents: write
+
+jobs:
+  job:
+    runs-on:
+      group: self-hosted
+    steps:
+      - name: clone
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: version
+        uses: charlesthomas/github-action-svu@v1.1.2+3.2.3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          always: true
+          pushTag: true
+      - name: build and release
+        uses: goreleaser/goreleaser-action@v5
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
